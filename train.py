@@ -16,14 +16,22 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 script_dir = os.path.abspath(os.path.dirname(__file__))
 
 SEQ_LEN = 100
-BATCH_SIZE = 128
+BATCH_SIZE = 2048
+HIDDEN_SIZE = 256
+LEARNING_RATE = 0.0001
+NUM_EPOCHS = 100
 
 
 def save_model(model, archive_dir):
     if not os.path.exists(archive_dir):
         os.makedirs(archive_dir)
     torch.save({
-        "model": model.state_dict()
+        "model": model.state_dict(),
+        "seq_len": SEQ_LEN,
+        "batch_size": BATCH_SIZE,
+        "hidden_size": HIDDEN_SIZE,
+        "learning_rate": LEARNING_RATE,
+        "num_epochs": NUM_EPOCHS
     }, os.path.join(archive_dir, "model.pt"))
 
 
@@ -47,6 +55,7 @@ def train_iters(model, data_loader, n_epochs, learning_rate, checkpoint_dir):
         avg_train_loss = total_loss / len(data_loader)
         print('%s (%d %d%%) %.4f' % (time_since(start, epoch / n_epochs),
                                      epoch, epoch / n_epochs * 100, avg_train_loss))
+        print('{{"metric": "Training loss", "value": {}, "epoch": {}}}'.format(avg_train_loss, epoch))
         loss_history.append(avg_train_loss)
 
         if epoch % 10 == 0:
@@ -99,10 +108,6 @@ def train(input_tensor, target_tensor, model, optimizer, criterion, seq_length=S
 
 
 def main(args):
-    hidden_size = 256
-    learning_rate = 0.0001
-    num_epochs = 11
-
     normalized_carrier, normalized_params, normalized_modulated, _, _ = load_dataset(args.dataset_path)
 
     dataset = TensorDataset(torch.from_numpy(normalized_carrier).float(),
@@ -113,13 +118,13 @@ def main(args):
 
     encoder_input_size = normalized_carrier.shape[-1] + normalized_params.shape[-1]
     decoder_output_size = normalized_modulated.shape[-1]
-    model = Seq2SeqModel(encoder_input_size, decoder_output_size, hidden_size, dropout_p=0.1, seq_len=SEQ_LEN).to(device)
+    model = Seq2SeqModel(encoder_input_size, decoder_output_size, HIDDEN_SIZE, dropout_p=0.1, seq_len=SEQ_LEN).to(device)
 
     checkpoint_dir = os.path.join(script_dir, "output", "checkpoints")
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
-    loss_history = train_iters(model, data_loader, num_epochs, learning_rate, checkpoint_dir)
+    loss_history = train_iters(model, data_loader, NUM_EPOCHS, LEARNING_RATE, checkpoint_dir)
     timestamp = datetime.strftime(datetime.now(), "%Y%m%d_%H%M%S")
     save_model(model, os.path.join(script_dir, "output", timestamp))
     plot_loss_history(loss_history, os.path.join(script_dir, "output", "{}_loss.png".format(timestamp)))
