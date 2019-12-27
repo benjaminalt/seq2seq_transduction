@@ -1,3 +1,5 @@
+import os
+
 import torch
 from torch import nn
 
@@ -8,10 +10,32 @@ class Seq2SeqModel(nn.Module):
         self.encoder = EncoderRNN(encoder_input_size, hidden_size)
         self.decoder = AttnDecoderRNN(hidden_size, decoder_output_size, dropout_p, seq_len)
 
+    def save(self, archive_dir):
+        print("Saving model to {}".format(archive_dir))
+        if not os.path.exists(archive_dir):
+            os.makedirs(archive_dir)
+        torch.save({
+            "state_dict": self.state_dict(),
+            "encoder_input_size": self.encoder.input_size,
+            "decoder_output_size": self.decoder.output_size,
+            "hidden_size": self.encoder.hidden_size,
+            "dropout_p": self.decoder.dropout_p,
+            "seq_len": self.decoder.max_length
+        }, os.path.join(archive_dir, "model.pt"))
+
+    @staticmethod
+    def load(archive_dir):
+        print("Loading model from {}".format(archive_dir))
+        checkpoint = torch.load(os.path.join(archive_dir, "model.pt"))
+        model = Seq2SeqModel(checkpoint["encoder_input_size"], checkpoint["decoder_output_size"],
+                             checkpoint["hidden_size"], checkpoint["dropout_p"], checkpoint["seq_len"])
+        model.load_state_dict(checkpoint["state_dict"])
+        return model
 
 class EncoderRNN(nn.Module):
     def __init__(self, input_size, hidden_size):
         super(EncoderRNN, self).__init__()
+        self.input_size = input_size
         self.hidden_size = hidden_size
 
         self.linear = nn.Linear(input_size, hidden_size)

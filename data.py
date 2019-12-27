@@ -7,6 +7,8 @@ import random
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 
+from utils import plot_waves
+
 amplitude_limits = [0.1, 5]
 freq_limits = [0.1, 5]
 phase_limits = [0, 2 * np.pi]
@@ -54,6 +56,9 @@ def denormalize(data, scaler):
 def generate_dataset(n, seq_len, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+        for kind in ("train", "validate", "test"):
+            os.makedirs(os.path.join(output_dir, kind))
+
     print("Generating dataset in {}...".format(output_dir))
     _, carrier_signals = generate_sins(n, seq_len)
     params, amplitudes = generate_sins(n, seq_len)
@@ -61,19 +66,33 @@ def generate_dataset(n, seq_len, output_dir):
     normalized_carrier, signal_scaler = normalize(carrier_signals)
     normalized_params, param_scaler = normalize(params)
     normalized_modulated, _ = normalize(modulated_signals, signal_scaler)
-    np.save(os.path.join(output_dir, "carrier.npy"), normalized_carrier)
-    np.save(os.path.join(output_dir, "params.npy"), normalized_params)
-    np.save(os.path.join(output_dir, "modulated.npy"), normalized_modulated)
+
+    np.save(os.path.join(output_dir, "train", "carrier.npy"), normalized_carrier)
+    np.save(os.path.join(output_dir, "train", "params.npy"), normalized_params)
+    np.save(os.path.join(output_dir, "train", "modulated.npy"), normalized_modulated)
+
+    for kind in ("validate", "test"):
+        num_data = int(0.2 * n)
+        _, carrier_signals = generate_sins(num_data, seq_len)
+        params, amplitudes = generate_sins(num_data, seq_len)
+        modulated_signals = amplitude_modulate(carrier_signals, amplitudes)
+        normalized_carrier, _ = normalize(carrier_signals, signal_scaler)
+        normalized_params, _ = normalize(params, param_scaler)
+        normalized_modulated, _ = normalize(modulated_signals, signal_scaler)
+        np.save(os.path.join(output_dir, kind, "carrier.npy"), normalized_carrier)
+        np.save(os.path.join(output_dir, kind, "params.npy"), normalized_params)
+        np.save(os.path.join(output_dir, kind, "modulated.npy"), normalized_modulated)
+
     joblib.dump(signal_scaler, os.path.join(output_dir, "signal_scaler.pkl"))
     joblib.dump(param_scaler, os.path.join(output_dir, "param_scaler.pkl"))
     print("Done.")
 
 
-def load_dataset(dataset_path):
+def load_dataset(dataset_path, kind="train"):
     print("Loading dataset from {}...".format(dataset_path))
-    normalized_carrier = np.load(os.path.join(dataset_path, "carrier.npy"))
-    normalized_params = np.load(os.path.join(dataset_path, "params.npy"))
-    normalized_modulated = np.load(os.path.join(dataset_path, "modulated.npy"))
+    normalized_carrier = np.load(os.path.join(dataset_path, kind, "carrier.npy"))
+    normalized_params = np.load(os.path.join(dataset_path, kind, "params.npy"))
+    normalized_modulated = np.load(os.path.join(dataset_path, kind, "modulated.npy"))
     signal_scaler = joblib.load(os.path.join(dataset_path, "signal_scaler.pkl"))
     param_scaler = joblib.load(os.path.join(dataset_path, "param_scaler.pkl"))
     print("Done.")
@@ -85,19 +104,7 @@ def main(args):
         params, data = generate_sins(args.n, args.seq_len)
         normalized_params, _ = normalize(params)
         normalized_data, _ = normalize(data)
-        fig, ax = plt.subplots(2)
-        for i in range(5):
-            param_set = params[i]
-            param_set_normalized = normalized_params[i]
-            y = data[i]
-            y_normalized = normalized_data[i]
-            ax[0].plot(np.arange(y.shape[0]), y, label="A: {:.2f}, f: {:.2f}, phi: {:.2f}".format(*param_set))
-            ax[1].plot(np.arange(y_normalized.shape[0]), y_normalized, label="A: {:.2f}, f: {:.2f}, phi: {:.2f}".format(*param_set_normalized))
-        ax[0].set_title("Raw")
-        ax[1].set_title("Normalized")
-        ax[0].legend()
-        ax[1].legend()
-        plt.show()
+        plot_waves(normalized_params, normalized_data)
     elif args.command == "generate_dataset":
         generate_dataset(args.n, args.seq_len, args.output_dir)
     else:

@@ -1,11 +1,10 @@
 import time
 import math
 
+import numpy as np
 import matplotlib.pyplot as plt
-
-plt.switch_backend('agg')
 import matplotlib.ticker as ticker
-
+default_backend = plt.get_backend()
 
 def as_minutes(s):
     m = math.floor(s / 60)
@@ -22,6 +21,7 @@ def time_since(since, percent):
 
 
 def plot_loss_history(points, filepath=None):
+    plt.switch_backend('agg')
     fig, ax = plt.subplots()
     # this locator puts ticks at regular intervals
     loc = ticker.MultipleLocator(base=0.2)
@@ -31,3 +31,17 @@ def plot_loss_history(points, filepath=None):
         plt.show()
     else:
         plt.savefig(filepath)
+
+
+def plot_waves(params, data, reference_data=None):
+    plt.switch_backend(default_backend)
+    fig, ax = plt.subplots()
+    for i in range(len(params)):
+        param_set = params[i]
+        y = data[i]
+        ax.plot(np.arange(y.shape[0]), y, label="A: {:.2f}, f: {:.2f}, phi: {:.2f}".format(*param_set))
+        if reference_data is not None:
+            y_ref = reference_data[i]
+            ax.plot(np.arange(y_ref.shape[0]), y_ref, linestyle=":")
+    ax.legend()
+    plt.show()
