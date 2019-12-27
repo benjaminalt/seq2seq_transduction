@@ -1,3 +1,4 @@
+import argparse
 import os
 import random
 import time
@@ -5,9 +6,9 @@ from datetime import datetime
 
 import torch
 from torch import nn
-import joblib
+from torch.utils.data import TensorDataset, DataLoader
 
-from data import generate_sins, amplitude_modulate, normalize
+from data import load_dataset
 from model import Seq2SeqModel
 from utils import time_since, plot_loss_history
 
@@ -18,17 +19,15 @@ SEQ_LEN = 100
 BATCH_SIZE = 128
 
 
-def save(model, signal_scaler, param_scaler, archive_dir):
+def save_model(model, archive_dir):
     if not os.path.exists(archive_dir):
         os.makedirs(archive_dir)
     torch.save({
         "model": model.state_dict()
     }, os.path.join(archive_dir, "model.pt"))
-    joblib.dump(signal_scaler, os.path.join(archive_dir, "signal_scaler.pkl"))
-    joblib.dump(param_scaler, os.path.join(archive_dir, "param_scaler.pkl"))
 
 
-def train_iters(model, data_loader, n_epochs, learning_rate, signal_scaler, param_scaler, checkpoint_dir):
+def train_iters(model, data_loader, n_epochs, learning_rate, checkpoint_dir):
     start = time.time()
     loss_history = []
 
@@ -51,7 +50,7 @@ def train_iters(model, data_loader, n_epochs, learning_rate, signal_scaler, para
         loss_history.append(avg_train_loss)
 
         if epoch % 10 == 0:
-            save(model, signal_scaler, param_scaler, os.path.join(checkpoint_dir, str(epoch)))
+            save_model(model, os.path.join(checkpoint_dir, str(epoch)))
 
     return loss_history
 
@@ -99,38 +98,34 @@ def train(input_tensor, target_tensor, model, optimizer, criterion, seq_length=S
     return loss.item() / target_length
 
 
-def main():
+def main(args):
     hidden_size = 256
     learning_rate = 0.0001
     num_epochs = 11
-    num_data = 1000
 
-    _, carrier_signals = generate_sins(num_data, SEQ_LEN)
-    params, amplitudes = generate_sins(num_data, SEQ_LEN)
-    modulated_signals = amplitude_modulate(carrier_signals, amplitudes)
-    normalized_carrier, signal_scaler = normalize(carrier_signals)
-    normalized_params, param_scaler = normalize(params)
-    normalized_modulated, _ = normalize(modulated_signals, signal_scaler)
+    normalized_carrier, normalized_params, normalized_modulated, _, _ = load_dataset(args.dataset_path)
 
-    dataset = torch.utils.data.TensorDataset(torch.from_numpy(normalized_carrier).float(),
+    dataset = TensorDataset(torch.from_numpy(normalized_carrier).float(),
                                              torch.from_numpy(normalized_params).float(),
                                              torch.from_numpy(normalized_modulated).float())
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=1,
+    data_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=1,
                                               pin_memory=True, drop_last=True)
 
-    encoder_input_size = carrier_signals.shape[-1] + params.shape[-1]
-    decoder_output_size = modulated_signals.shape[-1]
+    encoder_input_size = normalized_carrier.shape[-1] + normalized_params.shape[-1]
+    decoder_output_size = normalized_modulated.shape[-1]
     model = Seq2SeqModel(encoder_input_size, decoder_output_size, hidden_size, dropout_p=0.1, seq_len=SEQ_LEN).to(device)
 
     checkpoint_dir = os.path.join(script_dir, "output", "checkpoints")
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
-    loss_history = train_iters(model, data_loader, num_epochs, learning_rate, signal_scaler, param_scaler, checkpoint_dir)
+    loss_history = train_iters(model, data_loader, num_epochs, learning_rate, checkpoint_dir)
     timestamp = datetime.strftime(datetime.now(), "%Y%m%d_%H%M%S")
-    save(model, signal_scaler, param_scaler, os.path.join(script_dir, "output", timestamp))
+    save_model(model, os.path.join(script_dir, "output", timestamp))
     plot_loss_history(loss_history, os.path.join(script_dir, "output", "{}_loss.png".format(timestamp)))
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dataset_path", type=str)
+    main(parser.parse_args())
