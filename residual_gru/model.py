@@ -22,13 +22,13 @@ class ResidualGRU(nn.Module):
         return torch.zeros(1, batch_size, self.hidden_size, device=device)
 
     def forward(self, x, hidden):
-        x = nn.ReLU()(self.input_layer(x))
+        x = nn.SELU()(self.input_layer(x))
         x_prev = x
         for i in range(len(self.grus)):
             gru_input = torch.cat((x_prev, x), dim=-1)
             x_prev = x
             x, hidden = self.grus[i](gru_input, hidden)
-        x = nn.ReLU()(self.output_layer(x))
+        x = nn.SELU()(self.output_layer(x))
         return x
 
     def save(self, archive_dir):

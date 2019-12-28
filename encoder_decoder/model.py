@@ -79,7 +79,7 @@ class AttnDecoderRNN(nn.Module):
     def forward(self, inp, hidden, encoder_outputs):
         batch_size = inp.size(0)
 
-        embedded = self.dropout(nn.ReLU()(self.linear(inp)))
+        embedded = self.dropout(nn.SELU()(self.linear(inp)))
 
         if self.attention:
             attn_inputs = torch.cat((embedded, hidden[-1, :, :].view(batch_size, 1, hidden.size(-1))), -1)
@@ -87,13 +87,13 @@ class AttnDecoderRNN(nn.Module):
             attn_applied = torch.bmm(attn_weights, encoder_outputs)
             output = torch.cat((embedded, attn_applied), -1)
             output = self.attn_combine(output)
-            output = torch.nn.ReLU()(output)
+            output = torch.nn.SELU()(output)
         else:
             output = embedded
 
         output, hidden = self.gru(output, hidden)
 
-        output = torch.nn.ReLU()(self.out(output))
+        output = torch.nn.SELU()(self.out(output))
         return output, hidden
 
     def init_hidden(self, batch_size, device):

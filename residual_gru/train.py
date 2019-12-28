@@ -75,11 +75,12 @@ def train_step(input_tensor, target_tensor, model, optimizer, criterion):
     loss.backward()
     optimizer.step()
 
+    print("tick")
     return loss.item()
 
 
 def main(args):
-    batch_size = 2048
+    batch_size = 128
     hidden_size = 256
     learning_rate = 0.0001
     num_epochs = 100
