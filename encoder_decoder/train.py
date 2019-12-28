@@ -9,14 +9,14 @@ from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 
 from data import load_dataset
-from model import Seq2SeqModel
+from encoder_decoder.model import Seq2SeqModel
 from utils import time_since, plot_loss_history
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 script_dir = os.path.abspath(os.path.dirname(__file__))
 
 
-def train(dataset_path, batch_size, hidden_size, num_epochs, learning_rate):
+def train(dataset_path, batch_size, hidden_size, num_layers, num_epochs, learning_rate):
     normalized_carrier, normalized_params, normalized_modulated, _, _ = load_dataset(dataset_path)
     seq_len = normalized_carrier.shape[1]
     dataset = TensorDataset(torch.from_numpy(normalized_carrier).float(),
@@ -26,15 +26,15 @@ def train(dataset_path, batch_size, hidden_size, num_epochs, learning_rate):
                              pin_memory=True, drop_last=True)
     encoder_input_size = normalized_carrier.shape[-1] + normalized_params.shape[-1]
     decoder_output_size = normalized_modulated.shape[-1]
-    model = Seq2SeqModel(encoder_input_size, decoder_output_size, hidden_size, dropout_p=0.1, seq_len=seq_len).to(
-        device)
-    checkpoint_dir = os.path.join(script_dir, "output", "checkpoints")
+    model = Seq2SeqModel(encoder_input_size, decoder_output_size, hidden_size,
+                         num_layers, dropout_p=0.1, seq_len=seq_len, attention=False).to(device)
+    checkpoint_dir = os.path.join("output", "checkpoints")
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
     loss_history = train_loop(model, data_loader, num_epochs, learning_rate, checkpoint_dir)
     timestamp = datetime.strftime(datetime.now(), "%Y%m%d_%H%M%S")
-    model.save(os.path.join(script_dir, "output", timestamp))
-    plot_loss_history(loss_history, os.path.join(script_dir, "output", "{}_loss.png".format(timestamp)))
+    model.save(os.path.join("output", timestamp))
+    plot_loss_history(loss_history, os.path.join("output", "{}_loss.png".format(timestamp)))
 
 
 def train_loop(model, data_loader, n_epochs, learning_rate, checkpoint_dir):
@@ -42,7 +42,7 @@ def train_loop(model, data_loader, n_epochs, learning_rate, checkpoint_dir):
     loss_history = []
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
+    model.train()
     criterion = nn.MSELoss()
 
     for epoch in range(1, n_epochs + 1):
@@ -57,7 +57,6 @@ def train_loop(model, data_loader, n_epochs, learning_rate, checkpoint_dir):
         avg_train_loss = total_loss / len(data_loader)
         print('%s (%d %d%%) %.4f' % (time_since(start, epoch / n_epochs),
                                      epoch, epoch / n_epochs * 100, avg_train_loss))
-        print('{{"metric": "Training loss", "value": {}, "epoch": {}}}'.format(avg_train_loss, epoch))
         loss_history.append(avg_train_loss)
 
         if epoch % 10 == 0:
@@ -83,19 +82,19 @@ def train_step(input_tensor, target_tensor, model, optimizer, criterion):
     decoder_input = torch.zeros(batch_size, 1, model.decoder.output_size, device=device)
     decoder_hidden = encoder_hidden
 
-    use_teacher_forcing = True if random.random() < 0.5 else False
+    use_teacher_forcing = True if random.random() < 1.0 else False
 
     if use_teacher_forcing:
         # Teacher forcing: Feed the target as the next input
         for di in range(seq_len):
-            decoder_output, decoder_hidden, decoder_attention = model.decoder(decoder_input, decoder_hidden, encoder_outputs)
+            decoder_output, decoder_hidden = model.decoder(decoder_input, decoder_hidden, encoder_outputs)
             teacher_signal = target_tensor[:,di].unsqueeze(1)
             loss += criterion(decoder_output, teacher_signal)
             decoder_input = teacher_signal # Teacher forcing
     else:
         # Without teacher forcing: use its own predictions as the next input
         for di in range(seq_len):
-            decoder_output, decoder_hidden, decoder_attention = model.decoder(decoder_input, decoder_hidden, encoder_outputs)
+            decoder_output, decoder_hidden = model.decoder(decoder_input, decoder_hidden, encoder_outputs)
             loss += criterion(decoder_output, target_tensor[:,di].unsqueeze(1))
             decoder_input = decoder_output.detach()  # detach from history as input
 
@@ -110,7 +109,9 @@ def main(args):
     hidden_size = 256
     learning_rate = 0.0001
     num_epochs = 100
-    train(args.dataset_path, batch_size, hidden_size, num_epochs, learning_rate)
+    num_layers = 2
+
+    train(args.dataset_path, batch_size, hidden_size, num_layers, num_epochs, learning_rate)
 
 
 if __name__ == '__main__':
