@@ -13,7 +13,6 @@ from encoder_decoder.model import Seq2SeqModel
 from utils import time_since, plot_loss_history
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-script_dir = os.path.abspath(os.path.dirname(__file__))
 
 
 def train(dataset_path, batch_size, hidden_size, num_layers, num_epochs, learning_rate):
@@ -28,13 +27,14 @@ def train(dataset_path, batch_size, hidden_size, num_layers, num_epochs, learnin
     decoder_output_size = normalized_modulated.shape[-1]
     model = Seq2SeqModel(encoder_input_size, decoder_output_size, hidden_size,
                          num_layers, dropout_p=0.1, seq_len=seq_len, attention=False).to(device)
-    checkpoint_dir = os.path.join("output", "checkpoints")
+    output_dir = os.path.join("output", "encoder_decoder")
+    checkpoint_dir = os.path.join(output_dir, "checkpoints")
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
     loss_history = train_loop(model, data_loader, num_epochs, learning_rate, checkpoint_dir)
     timestamp = datetime.strftime(datetime.now(), "%Y%m%d_%H%M%S")
-    model.save(os.path.join("output", timestamp))
-    plot_loss_history(loss_history, os.path.join("output", "{}_loss.png".format(timestamp)))
+    model.save(os.path.join(output_dir, timestamp))
+    plot_loss_history(loss_history, os.path.join(output_dir, "{}_loss.png".format(timestamp)))
 
 
 def train_loop(model, data_loader, n_epochs, learning_rate, checkpoint_dir):
