@@ -45,9 +45,9 @@ class ResidualGRU(nn.Module):
         }, os.path.join(archive_dir, "model.pt"))
 
     @staticmethod
-    def load(archive_dir):
+    def load(archive_dir, device):
         print("Loading model from {}".format(archive_dir))
-        checkpoint = torch.load(os.path.join(archive_dir, "model.pt"))
+        checkpoint = torch.load(os.path.join(archive_dir, "model.pt"), map_location=device)
         model = ResidualGRU(checkpoint["input_size"], checkpoint["output_size"],
                              checkpoint["hidden_size"], checkpoint["num_layers"],
                              checkpoint["dropout_p"])

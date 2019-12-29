@@ -23,7 +23,7 @@ def evaluate(model, input_sequences):
 
 def main(args):
     normalized_carrier, normalized_params, normalized_modulated, _, _ = load_dataset(args.data_dir, "test")
-    model = ResidualGRU.load(args.model_dir)
+    model = ResidualGRU.load(args.model_dir, device)
 
     if args.command == "batch":
         dataset = TensorDataset(torch.from_numpy(normalized_carrier).float(),
@@ -43,11 +43,11 @@ def main(args):
         print("Test loss: {}".format(loss))
     elif args.command == "plot":
         for i in range(len(normalized_params)):
-            carrier_sig = torch.from_numpy(normalized_carrier[i]).unsqueeze(0).to(device)
-            params = torch.from_numpy(normalized_params[i]).unsqueeze(0).to(device)
+            carrier_sig = torch.from_numpy(normalized_carrier[i]).float().unsqueeze(0).to(device)
+            params = torch.from_numpy(normalized_params[i]).float().unsqueeze(0).to(device)
             param_seq_batch = params.unsqueeze(1).repeat(1, carrier_sig.size(1), 1)
             input_seq_batch = torch.cat((param_seq_batch, carrier_sig), dim=-1).to(device)
-            target = torch.from_numpy(normalized_modulated[i]).unsqueeze(0).to(device)
+            target = torch.from_numpy(normalized_modulated[i]).float().unsqueeze(0).to(device)
             output = evaluate(model, input_seq_batch)
             plot_waves(params, output.detach().cpu().numpy(), target.detach().cpu().numpy())
 

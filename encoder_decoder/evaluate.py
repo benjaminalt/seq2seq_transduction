@@ -15,7 +15,7 @@ def evaluate(model, input_sequences):
         batch_size, seq_len, input_size = input_sequences.size()
 
         encoder_hidden = model.encoder.init_hidden(batch_size=batch_size, device=device)
-        encoder_outputs = torch.zeros(seq_len, model.encoder.hidden_size, device=device)
+        encoder_outputs = torch.zeros(1, seq_len, model.encoder.hidden_size, device=device)
 
         for ei in range(seq_len):
             encoder_output, encoder_hidden = model.encoder(input_sequences[:, ei, :].unsqueeze(1), encoder_hidden)
@@ -23,20 +23,22 @@ def evaluate(model, input_sequences):
 
         decoder_input = torch.zeros(batch_size, 1, model.decoder.output_size, device=device)
         decoder_hidden = encoder_hidden
-        output_sequences = []
+        decoder_output = None
 
         for di in range(seq_len):
-            decoder_output, decoder_hidden, decoder_attention = model.decoder(decoder_input, decoder_hidden,
-                                                                              encoder_outputs)
-            decoder_input = decoder_output.detach()
-            output_sequences.append(decoder_input)
+            new_output, decoder_hidden = model.decoder(decoder_input, decoder_hidden, encoder_outputs)
+            if decoder_output is None:
+                decoder_output = new_output.detach()
+            else:
+                decoder_output = torch.cat((decoder_output, new_output[:,-1,:].detach().unsqueeze(1)), dim=1)
+            decoder_input = decoder_output
 
-        return torch.stack(output_sequences)
+        return decoder_output
 
 
 def main(args):
     normalized_carrier, normalized_params, normalized_modulated, _, _ = load_dataset(args.data_dir, "test")
-    model = Seq2SeqModel.load(args.model_dir)
+    model = Seq2SeqModel.load(args.model_dir, device)
     model.eval()
 
     if args.command == "batch":
@@ -57,11 +59,11 @@ def main(args):
         print("Test loss: {}".format(loss))
     elif args.command == "plot":
         for i in range(len(normalized_params)):
-            carrier_sig = torch.from_numpy(normalized_carrier[i]).unsqueeze(0).to(device)
-            params = torch.from_numpy(normalized_params[i]).unsqueeze(0).to(device)
+            carrier_sig = torch.from_numpy(normalized_carrier[i]).float().unsqueeze(0).to(device)
+            params = torch.from_numpy(normalized_params[i]).float().unsqueeze(0).to(device)
             param_seq_batch = params.unsqueeze(1).repeat(1, carrier_sig.size(1), 1)
             input_seq_batch = torch.cat((param_seq_batch, carrier_sig), dim=-1).to(device)
-            target = torch.from_numpy(normalized_modulated[i]).unsqueeze(0).to(device)
+            target = torch.from_numpy(normalized_modulated[i]).float().unsqueeze(0).to(device)
             output = evaluate(model, input_seq_batch)
             plot_waves(params, output.detach().cpu().numpy(), target.detach().cpu().numpy())
 

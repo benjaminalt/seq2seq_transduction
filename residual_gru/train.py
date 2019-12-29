@@ -74,7 +74,6 @@ def train_step(input_tensor, target_tensor, model, optimizer, criterion):
     loss.backward()
     optimizer.step()
 
-    print("tick")
     return loss.item()
 
 
