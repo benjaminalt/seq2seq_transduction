@@ -33,9 +33,10 @@ def plot_loss_history(points, filepath=None):
         plt.savefig(filepath)
 
 
-def plot_waves(params, data, reference_data=None):
-    plt.switch_backend(default_backend)
-    fig, ax = plt.subplots()
+def plot_waves(params, data, reference_data=None, ax=None):
+    if ax is None:
+        plt.switch_backend(default_backend)
+        fig, ax = plt.subplots()
     for i in range(len(params)):
         param_set = params[i]
         y = data[i]
@@ -44,4 +45,5 @@ def plot_waves(params, data, reference_data=None):
             y_ref = reference_data[i]
             ax.plot(np.arange(y_ref.shape[0]), y_ref, linestyle=":")
     ax.legend()
-    plt.show()
+    if ax is None:
+        plt.show()

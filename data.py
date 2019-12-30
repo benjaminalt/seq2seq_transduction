@@ -9,14 +9,16 @@ from sklearn.preprocessing import MinMaxScaler
 
 from utils import plot_waves
 
-amplitude_limits = [0.1, 5]
-freq_limits = [0.1, 5]
-phase_limits = [0, 2 * np.pi]
-
 script_dir = os.path.abspath(os.path.dirname(__file__))
 
 
-def generate_sins(n, seq_len):
+def generate_sins(n, seq_len, amplitude_limits=None, freq_limits=None, phase_limits=None):
+    if phase_limits is None:
+        phase_limits = [0, 2 * np.pi]
+    if freq_limits is None:
+        freq_limits = [1, 5]
+    if amplitude_limits is None:
+        amplitude_limits = [0.1, 5]
     params = []
     data = []
     for _ in range(n):
@@ -30,8 +32,17 @@ def generate_sins(n, seq_len):
     return np.array(params), np.expand_dims(np.array(data), -1)
 
 
-def amplitude_modulate(carrier, amplitudes):
-    return carrier * amplitudes
+def amplitude_modulate(carriers, signals):
+    return carriers * signals
+
+
+def frequency_modulate(carriers, carrier_params, signal_params):
+    seq_len = carriers.shape[1]
+    carrier_freqs = np.expand_dims(carrier_params[:,1], -1)
+    signal_freqs = np.expand_dims(signal_params[:,1], -1)
+    t = np.linspace(0, 1, seq_len)
+    modulated = np.sin(2 * np.pi * carrier_freqs * t + 1.0 * np.sin(2 * np.pi * signal_freqs * t))
+    return modulated
 
 
 def normalize(data, scaler=None):
@@ -53,18 +64,21 @@ def denormalize(data, scaler):
     return denormalized_data
 
 
-def generate_dataset(n, seq_len, output_dir):
+def generate_dataset(n, seq_len, output_dir, type="amplitude"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         for kind in ("train", "validate", "test"):
             os.makedirs(os.path.join(output_dir, kind))
 
     print("Generating dataset in {}...".format(output_dir))
-    _, carrier_signals = generate_sins(n, seq_len)
-    params, amplitudes = generate_sins(n, seq_len)
-    modulated_signals = amplitude_modulate(carrier_signals, amplitudes)
-    normalized_carrier, signal_scaler = normalize(carrier_signals)
-    normalized_params, param_scaler = normalize(params)
+    carrier_params, carriers = generate_sins(n, seq_len)
+    signal_params, signals = generate_sins(n, seq_len)
+    if type == "amplitude":
+        modulated_signals = amplitude_modulate(carriers, signals)
+    else:
+        modulated_signals = frequency_modulate(carriers, carrier_params, signal_params)
+    normalized_carrier, signal_scaler = normalize(carriers)
+    normalized_params, param_scaler = normalize(signal_params)
     normalized_modulated, _ = normalize(modulated_signals, signal_scaler)
 
     np.save(os.path.join(output_dir, "train", "carrier.npy"), normalized_carrier)
@@ -73,11 +87,14 @@ def generate_dataset(n, seq_len, output_dir):
 
     for kind in ("validate", "test"):
         num_data = int(0.2 * n)
-        _, carrier_signals = generate_sins(num_data, seq_len)
-        params, amplitudes = generate_sins(num_data, seq_len)
-        modulated_signals = amplitude_modulate(carrier_signals, amplitudes)
-        normalized_carrier, _ = normalize(carrier_signals, signal_scaler)
-        normalized_params, _ = normalize(params, param_scaler)
+        carrier_params, carriers = generate_sins(num_data, seq_len)
+        signal_params, signals = generate_sins(num_data, seq_len)
+        if type == "amplitude":
+            modulated_signals = amplitude_modulate(carriers, signals)
+        else:
+            modulated_signals = frequency_modulate(carriers, carrier_params, signal_params)
+        normalized_carrier, _ = normalize(carriers, signal_scaler)
+        normalized_params, _ = normalize(signal_params, param_scaler)
         normalized_modulated, _ = normalize(modulated_signals, signal_scaler)
         np.save(os.path.join(output_dir, kind, "carrier.npy"), normalized_carrier)
         np.save(os.path.join(output_dir, kind, "params.npy"), normalized_params)
@@ -101,12 +118,20 @@ def load_dataset(dataset_path, kind="train"):
 
 def main(args):
     if args.command == "plot":
-        params, data = generate_sins(args.n, args.seq_len)
-        normalized_params, _ = normalize(params)
-        normalized_data, _ = normalize(data)
-        plot_waves(normalized_params, normalized_data)
+        for _ in range(args.n):
+            carrier_params, carriers = generate_sins(1, args.seq_len, freq_limits=[10, 20])
+            signal_params, signals = generate_sins(1, args.seq_len)
+            if type == "amplitude":
+                modulated_signals = amplitude_modulate(carriers, signals)
+            else:
+                modulated_signals = frequency_modulate(carriers, carrier_params, signal_params)
+            fig, axes = plt.subplots(3)
+            plot_waves(carrier_params, carriers, ax=axes[0])
+            plot_waves(signal_params, signals, ax=axes[1])
+            plot_waves(signal_params, modulated_signals, ax=axes[2])
+            plt.show()
     elif args.command == "generate_dataset":
-        generate_dataset(args.n, args.seq_len, args.output_dir)
+        generate_dataset(args.n, args.seq_len, args.output_dir, args.modulation)
     else:
         raise ValueError("Invalid command: {}".format(args.command))
 
@@ -114,6 +139,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["plot", "generate_dataset"])
+    parser.add_argument("modulation", choices=["amplitude", "frequency"])
     parser.add_argument("--n", type=int, default=5)
     parser.add_argument("--seq_len", type=int, default=100)
     parser.add_argument("--output_dir", type=str, default=os.path.join(script_dir, "data"))
