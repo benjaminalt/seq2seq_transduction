@@ -28,7 +28,7 @@ class ResidualGRU(nn.Module):
             gru_input = torch.cat((x_prev, x), dim=-1)
             x_prev = x
             x, hidden = self.grus[i](gru_input, hidden)
-        x = nn.SELU()(self.output_layer(x))
+        x = self.output_layer(x)
         return x
 
     def save(self, archive_dir):

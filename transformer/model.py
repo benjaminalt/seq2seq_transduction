@@ -11,6 +11,9 @@ class TransformerModel(nn.Module):
         super(TransformerModel, self).__init__()
         self.d_model = d_model
         self.nhead = nhead
+        self.num_encoder_layers = num_decoder_layers
+        self.num_decoder_layers = num_decoder_layers
+        self.dim_feedforward = dim_feedforward
         self.input_dim = input_dim
         self.output_dim = output_dim
 
@@ -34,7 +37,7 @@ class TransformerModel(nn.Module):
     def decoder_forward(self, tgt, memory):
         tgt = nn.SELU()(self.decoder_input_layer(tgt))
         output = self.decoder(tgt, memory)
-        return nn.SELU()(self.decoder_output_layer(output))
+        return self.decoder_output_layer(output)
 
     def save(self, archive_dir):
         print("Saving model to {}".format(archive_dir))
@@ -45,15 +48,24 @@ class TransformerModel(nn.Module):
             "input_dim": self.input_dim,
             "output_dim": self.output_dim,
             "d_model": self.d_model,
-            "nhead": self.nhead
+            "nhead": self.nhead,
+            "num_encoder_layers": self.num_encoder_layers,
+            "num_decoder_layers": self.num_decoder_layers,
+            "dim_feedforward": self.dim_feedforward
         }, os.path.join(archive_dir, "model.pt"))
 
     @staticmethod
     def load(archive_dir, device):
         print("Loading model from {}".format(archive_dir))
         checkpoint = torch.load(os.path.join(archive_dir, "model.pt"), map_location=device)
+        num_encoder_layers = checkpoint["num_encoder_layers"] if "num_encoder_layers" in checkpoint.keys() else 6
+        num_decoder_layers = checkpoint["num_decoder_layers"] if "num_decoder_layers" in checkpoint.keys() else 6
+        dim_feedforward = checkpoint["dim_feedforward"] if "dim_feedforward" in checkpoint.keys() else 2048
+
         model = TransformerModel(checkpoint["input_dim"], checkpoint["output_dim"],
-                                 checkpoint["d_model"], checkpoint["nhead"])
+                                 checkpoint["d_model"], checkpoint["nhead"],
+                                 num_encoder_layers=num_encoder_layers, num_decoder_layers=num_decoder_layers,
+                                 dim_feedforward=dim_feedforward)
         model.load_state_dict(checkpoint["state_dict"])
         return model
 

@@ -93,7 +93,7 @@ class AttnDecoderRNN(nn.Module):
 
         output, hidden = self.gru(output, hidden)
 
-        output = torch.nn.SELU()(self.out(output))
+        output = self.out(output)
         return output, hidden
 
     def init_hidden(self, batch_size, device):
