@@ -42,7 +42,7 @@ def frequency_modulate(carriers, carrier_params, signal_params):
     signal_freqs = np.expand_dims(signal_params[:,1], -1)
     t = np.linspace(0, 1, seq_len)
     modulated = np.sin(2 * np.pi * carrier_freqs * t + 1.0 * np.sin(2 * np.pi * signal_freqs * t))
-    return modulated
+    return np.expand_dims(modulated, -1)
 
 
 def normalize(data, scaler=None):

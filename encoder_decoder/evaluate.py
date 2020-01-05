@@ -15,11 +15,7 @@ def evaluate(model, input_sequences):
         batch_size, seq_len, input_size = input_sequences.size()
 
         encoder_hidden = model.encoder.init_hidden(batch_size=batch_size, device=device)
-        encoder_outputs = torch.zeros(1, seq_len, model.encoder.hidden_size, device=device)
-
-        for ei in range(seq_len):
-            encoder_output, encoder_hidden = model.encoder(input_sequences[:, ei, :].unsqueeze(1), encoder_hidden)
-            encoder_outputs[:, ei] = encoder_output[:, 0]
+        encoder_outputs, encoder_hidden = model.encoder(input_sequences, encoder_hidden)
 
         decoder_input = torch.zeros(batch_size, 1, model.decoder.output_size, device=device)
         decoder_hidden = encoder_hidden
@@ -31,7 +27,7 @@ def evaluate(model, input_sequences):
                 decoder_output = new_output.detach()
             else:
                 decoder_output = torch.cat((decoder_output, new_output[:,-1,:].detach().unsqueeze(1)), dim=1)
-            decoder_input = decoder_output
+            decoder_input = new_output.detach()
 
         return decoder_output
 

@@ -22,13 +22,13 @@ def evaluate(model, input_sequences):
         decoder_output = None
 
         # Autoregressively generate output sequence with decoder
-        for _ in range(seq_len):
+        for i in range(seq_len):
             new_output = model.decoder_forward(decoder_input, memory)
             if decoder_output is None:
-                decoder_output = new_output[-1,:,:].unsqueeze(0).detach()
+                decoder_output = new_output[i,:,:].unsqueeze(0)
             else:
-                decoder_output = torch.cat((decoder_output, new_output[-1,:,:].detach().unsqueeze(0)), dim=0)
-            decoder_input = new_output
+                decoder_output = torch.cat((decoder_output, new_output[i,:,:].unsqueeze(0)), dim=0)
+            decoder_input = new_output.detach()
 
     return decoder_output.reshape(batch_size, seq_len, -1)
 

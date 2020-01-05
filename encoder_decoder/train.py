@@ -73,8 +73,6 @@ def train_step(input_tensor, target_tensor, model, optimizer, criterion):
     encoder_hidden = model.encoder.init_hidden(batch_size, device)
     encoder_outputs = torch.zeros(batch_size, seq_len, model.encoder.hidden_size, device=device)
 
-    loss = 0
-
     for ei in range(seq_len):
         encoder_output, encoder_hidden = model.encoder(input_tensor[:,ei,:].unsqueeze(1), encoder_hidden)
         encoder_outputs[:, ei] = encoder_output[:, 0]
@@ -83,25 +81,33 @@ def train_step(input_tensor, target_tensor, model, optimizer, criterion):
     decoder_hidden = encoder_hidden
 
     use_teacher_forcing = True if random.random() < 1.0 else False
+    decoder_outputs = None
 
     if use_teacher_forcing:
         # Teacher forcing: Feed the target as the next input
         for di in range(seq_len):
             decoder_output, decoder_hidden = model.decoder(decoder_input, decoder_hidden, encoder_outputs)
-            teacher_signal = target_tensor[:,di].unsqueeze(1)
-            loss += criterion(decoder_output, teacher_signal)
-            decoder_input = teacher_signal # Teacher forcing
+            if decoder_outputs is None:
+                decoder_outputs = decoder_output
+            else:
+                decoder_outputs = torch.cat((decoder_outputs, decoder_output[:,-1,:].unsqueeze(1)), dim=1)
+            decoder_input = target_tensor[:, di, :].unsqueeze(1) # Teacher forcing
     else:
         # Without teacher forcing: use its own predictions as the next input
         for di in range(seq_len):
             decoder_output, decoder_hidden = model.decoder(decoder_input, decoder_hidden, encoder_outputs)
-            loss += criterion(decoder_output, target_tensor[:,di].unsqueeze(1))
+            if decoder_outputs is None:
+                decoder_outputs = decoder_output
+            else:
+                decoder_outputs = torch.cat((decoder_outputs, decoder_output[:,-1,:].unsqueeze(1)), dim=1)
             decoder_input = decoder_output.detach()  # detach from history as input
+
+    loss = criterion(decoder_outputs, target_tensor)
 
     loss.backward()
     optimizer.step()
 
-    return loss.item() / seq_len
+    return loss.item()
 
 
 def main(args):
