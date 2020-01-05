@@ -15,6 +15,16 @@ from utils import time_since, plot_loss_history
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+def scheduled_sampling(epoch_idx, n_epochs):
+    """
+    See arXiv:1506.03099.
+    Decide whether or not to use teacher forcing with a probability decreasing during training.
+    :return: True for teacher forcing, False otherwise
+    """
+    teacher_forcing_prob = 1 - epoch_idx / n_epochs
+    return random.random() < teacher_forcing_prob
+
+
 def train(dataset_path, batch_size, hidden_size, num_layers, num_epochs, learning_rate):
     normalized_carrier, normalized_params, normalized_modulated, _, _ = load_dataset(dataset_path)
     seq_len = normalized_carrier.shape[1]
@@ -51,7 +61,8 @@ def train_loop(model, data_loader, n_epochs, learning_rate, checkpoint_dir):
             param_seq_batch = params.unsqueeze(1).repeat(1, carrier_sig.size(1), 1)
             input_seq_batch = torch.cat((param_seq_batch, carrier_sig), dim=-1).to(device)
             target_seq_batch = modulated_sig.to(device)
-            batch_loss = train_step(input_seq_batch, target_seq_batch, model, optimizer, criterion)
+            use_teacher_forcing = scheduled_sampling(epoch, n_epochs)
+            batch_loss = train_step(input_seq_batch, target_seq_batch, model, optimizer, criterion, use_teacher_forcing)
             total_loss += batch_loss
 
         avg_train_loss = total_loss / len(data_loader)
@@ -65,7 +76,7 @@ def train_loop(model, data_loader, n_epochs, learning_rate, checkpoint_dir):
     return loss_history
 
 
-def train_step(input_tensor, target_tensor, model, optimizer, criterion):
+def train_step(input_tensor, target_tensor, model, optimizer, criterion, use_teacher_forcing):
     batch_size, seq_len, _ = input_tensor.size()
 
     optimizer.zero_grad()
@@ -80,7 +91,6 @@ def train_step(input_tensor, target_tensor, model, optimizer, criterion):
     decoder_input = torch.zeros(batch_size, 1, model.decoder.output_size, device=device)
     decoder_hidden = encoder_hidden
 
-    use_teacher_forcing = True if random.random() < 1.0 else False
     decoder_outputs = None
 
     if use_teacher_forcing:
