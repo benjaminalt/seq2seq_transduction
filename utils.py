@@ -22,11 +22,17 @@ def time_since(since, percent):
 
 def plot_loss_history(points, filepath=None):
     plt.switch_backend('agg')
-    fig, ax = plt.subplots()
+    num_plots = 1 if type(points[0]) == float else len(points[0])
+    fig, ax = plt.subplots(ncols=num_plots)
     # this locator puts ticks at regular intervals
     loc = ticker.MultipleLocator(base=0.2)
-    ax.yaxis.set_major_locator(loc)
-    plt.plot(points)
+    if num_plots == 1:
+        ax.yaxis.set_major_locator(loc)
+        plt.plot(points)
+    else:
+        for i in num_plots:
+            ax[i].yaxis.set_major_locator(loc)
+            ax[i].plot(points[i])
     if filepath is None:
         plt.show()
     else:
