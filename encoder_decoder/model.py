@@ -35,6 +35,7 @@ class Seq2SeqModel(nn.Module):
                              checkpoint["hidden_size"], checkpoint["num_layers"],
                              checkpoint["dropout_p"], checkpoint["seq_len"], checkpoint["attention"])
         model.load_state_dict(checkpoint["state_dict"])
+        model = model.to(device)
         return model
 
 

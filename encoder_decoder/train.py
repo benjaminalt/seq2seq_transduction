@@ -121,11 +121,11 @@ def train_step(input_tensor, target_tensor, model, optimizer, criterion, use_tea
 
 
 def main(args):
-    batch_size = 2048
+    batch_size = 150
     hidden_size = 256
     learning_rate = 0.0001
-    num_epochs = 100
-    num_layers = 2
+    num_epochs = 200
+    num_layers = 4
 
     train(args.dataset_path, batch_size, hidden_size, num_layers, num_epochs, learning_rate)
 

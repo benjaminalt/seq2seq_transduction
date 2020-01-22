@@ -52,4 +52,5 @@ class ResidualGRU(nn.Module):
                              checkpoint["hidden_size"], checkpoint["num_layers"],
                              checkpoint["dropout_p"])
         model.load_state_dict(checkpoint["state_dict"])
+        model = model.to(device)
         return model

@@ -14,7 +14,7 @@ from utils import time_since, plot_loss_history
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def train(dataset_path, batch_size, num_layers, num_epochs, learning_rate):
+def train(dataset_path, batch_size, hidden_size, num_layers, num_epochs, learning_rate):
     normalized_carrier, normalized_params, normalized_modulated, _, _ = load_dataset(dataset_path)
     dataset = TensorDataset(torch.from_numpy(normalized_carrier).float(),
                             torch.from_numpy(normalized_params).float(),
@@ -23,7 +23,7 @@ def train(dataset_path, batch_size, num_layers, num_epochs, learning_rate):
                              pin_memory=True, drop_last=True)
     input_size = normalized_carrier.shape[-1] + normalized_params.shape[-1]
     output_size = normalized_modulated.shape[-1]
-    model = CNNModel(input_size, output_size, num_layers, dropout_p=0.1).to(device)
+    model = CNNModel(input_size, output_size, hidden_size, num_layers, dropout_p=0.1).to(device)
     output_dir = os.path.join("output", "cnn")
     checkpoint_dir = os.path.join(output_dir, "checkpoints")
     if not os.path.exists(checkpoint_dir):
@@ -77,12 +77,13 @@ def train_step(input_tensor, target_tensor, model, optimizer, criterion):
 
 
 def main(args):
-    batch_size = 128
-    learning_rate = 0.00001
-    num_epochs = 100
-    num_layers = 2
+    batch_size = 800
+    learning_rate = 0.0001
+    num_epochs = 200
+    num_layers = 4
+    hidden_size = 64
 
-    train(args.dataset_path, batch_size, num_layers, num_epochs, learning_rate)
+    train(args.dataset_path, batch_size, hidden_size, num_layers, num_epochs, learning_rate)
 
 
 if __name__ == '__main__':
