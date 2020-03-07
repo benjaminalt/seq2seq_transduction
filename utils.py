@@ -20,19 +20,20 @@ def time_since(since, percent):
     return '%s (- %s)' % (as_minutes(s), as_minutes(rs))
 
 
-def plot_loss_history(points, filepath=None):
+def plot_loss_history(points, filepath=None, labels=None):
+    labels = labels if labels is not None else ["Train"]
     plt.switch_backend('agg')
-    num_plots = 1 if type(points[0]) == float else len(points[0])
-    fig, ax = plt.subplots(ncols=num_plots)
+    num_series = 1 if type(points[0]) == float else len(points[0])
+    assert num_series == len(labels)
+    fig, ax = plt.subplots()
     # this locator puts ticks at regular intervals
-    loc = ticker.MultipleLocator(base=0.2)
-    if num_plots == 1:
-        ax.yaxis.set_major_locator(loc)
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(base=0.2))
+    if num_series == 1:
         plt.plot(points)
     else:
-        for i in num_plots:
-            ax[i].yaxis.set_major_locator(loc)
-            ax[i].plot(points[i])
+        for i in range(num_series):
+            ax.plot([point[i] for point in points])
+    ax.legend(labels)
     if filepath is None:
         plt.show()
     else:

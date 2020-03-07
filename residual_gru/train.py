@@ -81,7 +81,7 @@ def main(args):
     batch_size = 128
     hidden_size = 256
     learning_rate = 0.0001
-    num_epochs = 100
+    num_epochs = 4
     num_layers = 4
 
     train(args.dataset_path, batch_size, hidden_size, num_layers, num_epochs, learning_rate)

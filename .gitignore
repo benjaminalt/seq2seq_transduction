@@ -201,5 +201,6 @@ dmypy.json
 .pyre/
 
 output
-data
+datasets
 notes.md
+trained_models
