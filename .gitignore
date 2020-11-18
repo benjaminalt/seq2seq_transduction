@@ -202,5 +202,6 @@ dmypy.json
 
 output
 datasets
+data
 notes.md
 trained_models

@@ -1,10 +1,11 @@
 import argparse
+import os
 
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
 from data import load_dataset
-from transformer.model import TransformerModel
+from tst import Transformer
 from utils import plot_waves
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -12,30 +13,16 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def evaluate(model, input_sequences):
     with torch.no_grad():
-        batch_size, seq_len, input_size = input_sequences.size()
-
-        # Model expects (seq_len, batch_size, input_size)
-        input_tensor = input_sequences.reshape((seq_len, batch_size, -1))
-        memory = model.encoder_forward(input_tensor)
-
-        decoder_input = torch.zeros(seq_len, batch_size, 1, device=device)
-        decoder_output = None
-
-        # Autoregressively generate output sequence with decoder
-        for i in range(seq_len):
-            new_output = model.decoder_forward(decoder_input, memory)
-            if decoder_output is None:
-                decoder_output = new_output[i,:,:].unsqueeze(0)
-            else:
-                decoder_output = torch.cat((decoder_output, new_output[i,:,:].unsqueeze(0)), dim=0)
-            decoder_input = new_output.detach()
-
-    return decoder_output.reshape(batch_size, seq_len, -1)
+        return model(input_sequences)
 
 
 def main(args):
     normalized_carrier, normalized_params, normalized_modulated, _, _ = load_dataset(args.data_dir, "test")
-    model = TransformerModel.load(args.model_dir, device)
+    checkpoint = torch.load(os.path.join(args.model_file))
+    p = checkpoint["parameters"]
+    model = Transformer(p["d_input"], p["d_model"], p["d_output"], p["q"], p["v"], p["h"], p["N"], p["attention_size"],
+                        p["dropout"], p["chunk_mode"], p["pe"]).to(device)
+    model.load_state_dict(checkpoint["state_dict"])
     model.eval()
 
     if args.command == "batch":
@@ -68,6 +55,6 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["plot", "batch"])
-    parser.add_argument("model_dir", type=str)
+    parser.add_argument("model_file", type=str)
     parser.add_argument("data_dir", type=str)
     main(parser.parse_args())
