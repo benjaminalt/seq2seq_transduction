@@ -7,7 +7,7 @@ import random
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 
-from utils import plot_waves
+from seq2seq_transduction.utils import plot_waves
 
 script_dir = os.path.abspath(os.path.dirname(__file__))
 

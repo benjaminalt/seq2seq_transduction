@@ -7,9 +7,9 @@ import torch
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 
-from data import load_dataset
-from cnn.model import CNNModel
-from utils import time_since, plot_loss_history
+from seq2seq_transduction.data import load_dataset
+from seq2seq_transduction.cnn.model import CNNModel
+from seq2seq_transduction.utils import time_since, plot_loss_history
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

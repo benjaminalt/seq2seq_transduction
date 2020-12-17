@@ -1,7 +1,5 @@
 import argparse
 import os
-import random
-import sys
 import time
 from datetime import datetime
 
@@ -9,9 +7,9 @@ import torch
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 
-from data import load_dataset
-from professor_forcing.model import EncoderDecoder
-from utils import time_since, plot_loss_history
+from seq2seq_transduction.data import load_dataset
+from seq2seq_transduction.professor_forcing import EncoderDecoder
+from seq2seq_transduction.utils import time_since, plot_loss_history
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

@@ -3,9 +3,9 @@ import argparse
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
-from data import load_dataset
-from encoder_decoder.model import Seq2SeqModel
-from utils import plot_waves
+from seq2seq_transduction.data import load_dataset
+from seq2seq_transduction.encoder_decoder import Seq2SeqModel
+from seq2seq_transduction.utils import plot_waves
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
