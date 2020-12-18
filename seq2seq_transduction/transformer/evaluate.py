@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 
 from seq2seq_transduction.data import load_dataset
-from tst import Transformer
+from seq2seq_transduction.transformer.model import Transformer
 from seq2seq_transduction.utils import plot_waves
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -13,15 +13,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def evaluate(model, input_sequences):
     with torch.no_grad():
-        return model(input_sequences)
+        return model(input_sequences).unsqueeze(-1)
 
 
 def main(args):
     normalized_carrier, normalized_params, normalized_modulated, _, _ = load_dataset(args.data_dir, "test")
     checkpoint = torch.load(os.path.join(args.model_file))
     p = checkpoint["parameters"]
-    model = Transformer(p["d_input"], p["d_model"], p["d_output"], p["q"], p["v"], p["h"], p["N"], p["attention_size"],
-                        p["dropout"], p["chunk_mode"], p["pe"]).to(device)
+    model = Transformer(p["dim_val"], p["dim_attn"], p["input_size"], p["dec_seq_len"], p["output_sequence_length"],
+                        p["n_decoder_layers"], p["n_encoder_layers"], p["n_heads"]).to(device)
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
 

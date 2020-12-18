@@ -7,8 +7,8 @@ import torch
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
-from tst import Transformer
 
+from seq2seq_transduction.transformer.model import Transformer
 from seq2seq_transduction.data import load_dataset
 from seq2seq_transduction.utils import time_since, plot_loss_history
 
@@ -31,23 +31,22 @@ def train(dataset_path, batch_size, num_epochs, learning_rate):
                              pin_memory=True, drop_last=True)
 
     p = {
-        "d_model": 64,  # Latent dim
-        "q": 8,         # Query size
-        "v": 8,         # Value size
-        "h": 8,         # Number of heads
-        "N": 3,         # Number of encoder and decoder to stack
-        "attention_size": 12,  # Attention window size
-        "dropout": 0.3,        # Dropout rate
-        "pe": None,            # Positional encoding
-        "chunk_mode": None,
-        "d_input": normalized_carrier_train.shape[-1] + normalized_params_train.shape[-1],
-        "d_output": normalized_modulated_train.shape[-1],
-        "batch_size": batch_size,
-        "seq_len": normalized_carrier_train.shape[1]
+        "enc_seq_len": 64,
+        "dec_seq_len": 64,
+        "input_size": 1 + 3,
+        "output_sequence_length": 250,
+        "dim_val": 32,
+        "dim_attn": 32,
+        "lr": learning_rate,
+        "epochs": num_epochs,
+        "n_heads": 16,
+        "n_decoder_layers": 4,
+        "n_encoder_layers": 4,
+        "batch_size": batch_size
     }
 
-    model = Transformer(p["d_input"], p["d_model"], p["d_output"], p["q"], p["v"], p["h"], p["N"], p["attention_size"],
-                        p["dropout"], p["chunk_mode"], p["pe"]).to(device)
+    model = Transformer(p["dim_val"], p["dim_attn"], p["input_size"], p["dec_seq_len"], p["output_sequence_length"],
+                        p["n_decoder_layers"], p["n_encoder_layers"], p["n_heads"]).to(device)
     output_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), os.pardir, os.pardir, "output", "transformer")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -94,7 +93,7 @@ def train_loop(model, train_loader, val_loader, n_epochs, learning_rate):
 
 
 def train_step(input_tensor, target_tensor, model, optimizer, criterion, validate=False):
-    output = model(input_tensor)
+    output = model(input_tensor).unsqueeze(-1)
     loss = criterion(output, target_tensor)
     if not validate:
         optimizer.zero_grad()
@@ -105,8 +104,8 @@ def train_step(input_tensor, target_tensor, model, optimizer, criterion, validat
 
 def main(args):
     batch_size = 32
-    learning_rate = 5e-4
-    num_epochs = 100
+    learning_rate = 1e-3
+    num_epochs = 30
     train(args.dataset_path, batch_size, num_epochs, learning_rate)
 
 
